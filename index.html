@@ -8,6 +8,7 @@
     body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
     select, button { margin: 10px; padding: 5px; }
     iframe { border: none; width: 640px; height: 360px; }
+    .error { color: red; }
   </style>
 </head>
 <body>
@@ -31,7 +32,7 @@
       try {
         const response = await fetch("https://www.pornhub.com/webmasters/categories");
         if (!response.ok) {
-          throw new Error("Failed to fetch categories");
+          throw new Error(`Failed to fetch categories: ${response.status}`);
         }
         const data = await response.json();
         const categories = data.categories;
@@ -47,7 +48,8 @@
           }
         });
       } catch (error) {
-        console.error("Error fetching categories:", error);
+        console.error("Error fetching categories:", error.message);
+        document.getElementById("videoContainer").innerHTML = `<p class="error">Failed to load categories: ${error.message}</p>`;
       }
     }
 
@@ -55,35 +57,37 @@
     async function playRandomVideo() {
       try {
         const genre = document.getElementById("genre").value;
-        let url = "https://www.pornhub.com/webmasters/search?ordering=random";
-        // Handle studios (brazzers, bangbros) as search terms, others as categories
+        // Use a CORS proxy to bypass restrictions (replace with your proxy if needed)
+        const proxyUrl = "https://cors-anywhere.herokuapp.com/";
+        let apiUrl = "https://www.pornhub.com/webmasters/search?ordering=random";
         if (genre === "brazzers" || genre === "bangbros") {
-          url += `&search=${encodeURIComponent(genre)}`;
+          apiUrl += `&search=${encodeURIComponent(genre)}`;
         } else if (genre !== "all") {
-          url += `&category=${encodeURIComponent(genre)}`;
+          apiUrl += `&category=${encodeURIComponent(genre)}`;
         }
-        const response = await fetch(url);
+        const response = await fetch(proxyUrl + apiUrl, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
         if (!response.ok) {
-          throw new Error("Network response was not ok");
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const data = await response.json();
         const videos = data.videos;
         if (videos && videos.length > 0) {
-          // Pick a random video from the list
           const randomIndex = Math.floor(Math.random() * videos.length);
           const randomVideo = videos[randomIndex];
           const embedUrl = randomVideo.embed.iframe;
           const videoContainer = document.getElementById("videoContainer");
-          // Embed the video in an iframe
           videoContainer.innerHTML = `<iframe src="${embedUrl}" allowfullscreen></iframe>`;
         } else {
-          console.error("No videos found");
-          videoContainer.innerHTML = "<p>No videos available.</p>";
+          throw new Error("No videos found for the selected genre.");
         }
       } catch (error) {
-        console.error("Error fetching video:", error);
+        console.error("Error fetching video:", error.message);
         const videoContainer = document.getElementById("videoContainer");
-        videoContainer.innerHTML = "<p>Error loading video. Please try again.</p>";
+        videoContainer.innerHTML = `<p class="error">Error loading video: ${error.message}. Try hosting on a server or using a CORS proxy.</p>`;
       }
     }
   </script>
